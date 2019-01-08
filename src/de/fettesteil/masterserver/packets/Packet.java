@@ -4,13 +4,14 @@ import org.json.simple.JSONObject;
 
 public class Packet {
 
-	// CS = ClientToServer, SC = ServerTOClient
 	public static final int
 	LOGINPACKET = 1,
 	LOGINRESPONSE = 2,
 	NEWPROCESS = 3,
 	PROCESSFINFO = 4,
-	TERMINATEPROCESS = 5;
+	TERMINATEPROCESS = 5,
+	PINGTEST_SEND = 6,
+	PINGTEST_RECV = 7;
 
 	private int packetid;
 	private JSONObject data;
@@ -18,7 +19,7 @@ public class Packet {
 	public Packet(int packetid) {
 		this.packetid = packetid;
 		this.data = new JSONObject();
-		this.data.put("packetid", String.valueOf(packetid));
+		put("packetid", String.valueOf(packetid));
 	}
 
 	public int getPacketid() {
