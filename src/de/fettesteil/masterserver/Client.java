@@ -10,6 +10,7 @@ import java.util.UUID;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
+import de.fettesteil.masterserver.packets.AddServerPacket;
 import de.fettesteil.masterserver.packets.LoginResponse;
 import de.fettesteil.masterserver.packets.Packet;
 import de.fettesteil.masterserver.packets.PingTestPacket;
@@ -24,10 +25,19 @@ public class Client implements Runnable {
 	private boolean authenticated = false;
 	private Long connectedSince;
 
+	private String name, location;
+	private boolean isServer = false;
+
 	public Client(Socket socket, UUID uuid) {
 		this.socket = socket;
 		this.uuid = uuid;
 		this.connectedSince = System.currentTimeMillis();
+	}
+
+	public void setAsChildServer(String name, String location) {
+		isServer = true;
+		this.name = name;
+		this.location = location;
 	}
 
 	public boolean isAuthenticated() {
@@ -63,13 +73,18 @@ public class Client implements Runnable {
 						break;
 					JSONObject rawObj = (JSONObject) new JSONParser().parse(raw);
 					int packetid = Integer.valueOf((String) rawObj.get("packetid"));
+					if (packetid != Packet.LOGINPACKET && !authenticated) {
+						log("!!! Tried to send packet without permission !!!");
+						disconnect();
+						break;
+					}
 					switch (packetid) {
 					case Packet.LOGINPACKET:
 						String key = (String) rawObj.get("key");
-						if (key != null && key.equals(Main.ADMIN_KEY)) {
+						if (key != null && key.equals((String) Main.config.get("masterkey"))) {
 							authenticated = true;
 							send(new LoginResponse(LoginResponse.LOGIN_SUCCESS));
-							log("Authenticated with ADMIN_KEY");
+							log("Authenticated!");
 						} else {
 							send(new LoginResponse(LoginResponse.LOGIN_FAILURE));
 							log("Authentication failure");
@@ -80,6 +95,13 @@ public class Client implements Runnable {
 					case Packet.PINGTEST_SEND:
 						send(new PingTestPacket(Packet.PINGTEST_RECV));
 						break;
+					// case Packet.ADD_SERVER:
+					// AddServerPacket.process((String) rawObj.get("name"),
+					// (String) rawObj.get("key"),
+					// (String) rawObj.get("location"), (String)
+					// rawObj.get("ip"),
+					// Integer.valueOf((String) rawObj.get("port")), this);
+					// break;
 					default:
 						log("PacketID (" + packetid + ") not registered");
 					}

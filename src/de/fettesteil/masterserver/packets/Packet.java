@@ -13,7 +13,8 @@ public class Packet {
 	PINGTEST_SEND = 6,
 	PINGTEST_RECV = 7,
 	ADD_SERVER = 8,
-	REMOVE_SERVER = 9;
+	REMOVE_SERVER = 9,
+	BROADCAST = 10;
 
 	private int packetid;
 	private JSONObject data;
