@@ -4,13 +4,14 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.Random;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
-import de.fettesteil.masterserver.packets.AddServerPacket;
+import de.fettesteil.masterserver.packets.BroadcastPacket;
 import de.fettesteil.masterserver.packets.LoginResponse;
 import de.fettesteil.masterserver.packets.Packet;
 import de.fettesteil.masterserver.packets.PingTestPacket;
@@ -24,6 +25,8 @@ public class Client implements Runnable {
 	private UUID uuid;
 	private boolean authenticated = false;
 	private Long connectedSince;
+	private int ping = -1;
+	public Long pingSend = 0L;
 
 	private String name, location;
 	private boolean isServer = false;
@@ -38,6 +41,26 @@ public class Client implements Runnable {
 		isServer = true;
 		this.name = name;
 		this.location = location;
+	}
+
+	public Socket getSocket() {
+		return socket;
+	}
+
+	public boolean isServer() {
+		return isServer;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public String getLocation() {
+		return location;
+	}
+
+	public int getPing() {
+		return ping;
 	}
 
 	public boolean isAuthenticated() {
@@ -82,9 +105,22 @@ public class Client implements Runnable {
 					case Packet.LOGINPACKET:
 						String key = (String) rawObj.get("key");
 						if (key != null && key.equals((String) Main.config.get("masterkey"))) {
-							authenticated = true;
-							send(new LoginResponse(LoginResponse.LOGIN_SUCCESS));
-							log("Authenticated!");
+							// check if already loggedi in with this uuid
+							String uuid = (String) rawObj.get("uuid");
+							if (uuid != null && getByUUID(UUID.fromString(uuid)) != null) {
+								// already logged in with this uuid
+								send(new LoginResponse(LoginResponse.ALREADY_LOGGED_IN));
+							} else {
+								authenticated = true;
+								send(new LoginResponse(LoginResponse.LOGIN_SUCCESS));
+								log("Authenticated!");
+								// set to server
+								if (rawObj.get("isServer") != null && (boolean) rawObj.get("isServer")) {
+									log("Set to ChildServer and change uuid to " + rawObj.get("uuid"));
+									this.uuid = UUID.fromString((String) rawObj.get("uuid"));
+									setAsChildServer(getSocket().getInetAddress().toString(), "-");
+								}
+							}
 						} else {
 							send(new LoginResponse(LoginResponse.LOGIN_FAILURE));
 							log("Authentication failure");
@@ -94,6 +130,9 @@ public class Client implements Runnable {
 						break;
 					case Packet.PINGTEST_SEND:
 						send(new PingTestPacket(Packet.PINGTEST_RECV));
+						break;
+					case Packet.PINGTEST_RECV:
+						ping = Math.toIntExact(System.currentTimeMillis() - pingSend);
 						break;
 					// case Packet.ADD_SERVER:
 					// AddServerPacket.process((String) rawObj.get("name"),
@@ -134,4 +173,28 @@ public class Client implements Runnable {
 		System.out.println("[" + uuid.toString() + "] " + msg);
 	}
 
+	// STATIC METHODS
+
+	public static List<Client> getControllers() {
+		List<Client> r = new ArrayList<Client>();
+		for (int i = 0; i < Main.clientList.size(); i++)
+			if (!Main.clientList.get(i).isServer)
+				r.add(Main.clientList.get(i));
+		return r;
+	}
+
+	public static List<Client> getChildServer() {
+		List<Client> r = new ArrayList<Client>();
+		for (int i = 0; i < Main.clientList.size(); i++)
+			if (Main.clientList.get(i).isServer)
+				r.add(Main.clientList.get(i));
+		return r;
+	}
+
+	public static Client getByUUID(UUID uuid) {
+		for (int i = 0; i < Main.clientList.size(); i++)
+			if (Main.clientList.get(i).getUuid().toString().equals(uuid.toString()))
+				return Main.clientList.get(i);
+		return null;
+	}
 }

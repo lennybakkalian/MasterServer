@@ -12,6 +12,8 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
+import de.fettesteil.masterserver.packets.ServerDataPacket;
+
 public class Main {
 
 	public static ServerSocket socket;
@@ -19,7 +21,6 @@ public class Main {
 	public static final Long LOGIN_TIMEOUT = 3000L;
 
 	public static List<Client> clientList = new ArrayList<Client>();
-	public static List<Client> childServerList = new ArrayList<Client>();
 
 	public static JSONObject config;
 
@@ -44,6 +45,7 @@ public class Main {
 
 			socket = new ServerSocket(port);
 
+			new UpdateThread().start();
 			new Thread(new TickThread()).start();
 			new Thread(new ClientHandler()).run();
 
