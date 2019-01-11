@@ -8,10 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
-import de.fettesteil.masterserver.packets.BroadcastPacket;
 import de.fettesteil.masterserver.packets.LoginResponse;
 import de.fettesteil.masterserver.packets.Packet;
 import de.fettesteil.masterserver.packets.PingTestPacket;
@@ -119,6 +119,12 @@ public class Client implements Runnable {
 									log("Set to ChildServer and change uuid to " + rawObj.get("uuid"));
 									this.uuid = UUID.fromString((String) rawObj.get("uuid"));
 									setAsChildServer(getSocket().getInetAddress().toString(), "-");
+									// register server if not exist
+									if (!Client.isInConfig(UUID.fromString(uuid))) {
+										log("Registered as new ChildServer!");
+										Client.addToConfig(name, socket.getInetAddress().toString(), "",
+												UUID.fromString(uuid));
+									}
 								}
 							}
 						} else {
@@ -196,5 +202,46 @@ public class Client implements Runnable {
 			if (Main.clientList.get(i).getUuid().toString().equals(uuid.toString()))
 				return Main.clientList.get(i);
 		return null;
+	}
+
+	public static void addToConfig(String name, String address, String location, UUID uuid) {
+		JSONArray arr = (JSONArray) Main.config.get("childServer");
+		JSONObject o = new JSONObject();
+		o.put("name", name);
+		o.put("address", address);
+		o.put("location", location);
+		o.put("uuid", uuid.toString());
+		arr.add(o);
+		// save back to file
+		Main.saveConfig();
+	}
+
+	public static boolean isInConfig(UUID uuid) {
+		JSONArray arr = (JSONArray) Main.config.get("childServer");
+		for (Object o : arr) {
+			JSONObject json = (JSONObject) o;
+			if (((String) json.get("uuid")).equals(uuid.toString()))
+				return true;
+		}
+		return false;
+	}
+
+	public static List<JSONObject> getOfflineClients() {
+		List<JSONObject> list = new ArrayList<JSONObject>();
+		JSONArray arr = (JSONArray) Main.config.get("childServer");
+		for (Object o : arr) {
+			JSONObject json = (JSONObject) o;
+			// check if online
+			boolean offline = true;
+			for (Client c : getChildServer()) {
+				if (c.getUuid().toString().equals((String) json.get("uuid")))
+					offline = false;
+			}
+			if (offline) {
+				list.add(json);
+			}
+
+		}
+		return list;
 	}
 }

@@ -23,24 +23,23 @@ public class Main {
 	public static List<Client> clientList = new ArrayList<Client>();
 
 	public static JSONObject config;
+	public static File configFile = new File("masterserver.json");
 
 	public static void main(String[] args) {
 		try {
-			File configFile = new File("masterserver.json");
 			if (configFile.exists()) {
 				BufferedReader br = new BufferedReader(new FileReader(configFile));
 				config = (JSONObject) new JSONParser().parse(br.readLine());
 				br.close();
-				System.out.println("Config Loaded!");
+				System.out.println("[CONFIG] Loaded!");
+				System.out.println(((JSONArray) config.get("childServer")).size() + " ChildServers registered!");
 			} else {
 				config = new JSONObject();
 				config.put("childServer", new JSONArray());
 				// TODO: masterkey random generation
 				config.put("masterkey", "test");
-				FileWriter fw = new FileWriter(configFile);
-				fw.write(config.toJSONString());
-				fw.close();
-				System.out.println("config created");
+				saveConfig();
+				System.out.println("[CONFIG] Created!");
 			}
 
 			socket = new ServerSocket(port);
@@ -52,6 +51,18 @@ public class Main {
 		} catch (Exception e) {
 			e.printStackTrace();
 			System.exit(0);
+		}
+	}
+
+	public static void saveConfig() {
+		try {
+			if (configFile.exists())
+				configFile.delete();
+			FileWriter fw = new FileWriter(configFile);
+			fw.write(config.toJSONString());
+			fw.close();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 }
